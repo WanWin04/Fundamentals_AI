@@ -1,47 +1,19 @@
 import numpy as np
 from collections import deque
 from queue import PriorityQueue
+import math
 
 
 def path_converter(visited, end):
     path = []
+    current_node = end
     
-    if end not in visited:
-        print("Not Found Path")
-        return path
-    
-    previous_node = visited[end]
-    path.append(end)
-    
-    while previous_node in visited and previous_node is not None:
-        path.append(previous_node)
-        previous_node = visited[previous_node]
+    while current_node is not None:
+        path.append(current_node)
+        current_node = visited[current_node]
         
     path.reverse()
-    return path
-
-
-def DFS_recur(matrix, visited, current, end):
-    if current == end:
-        return visited
-    
-    for vertex in range(len(matrix)):
-        cost = matrix[current][vertex]
-        if cost > 0 and vertex not in visited:
-            visited[vertex] = current
-            visited = DFS_recur(matrix, visited, vertex, end)
-            
-    return visited
-
-
-def current_cost_of_vertex(visited, vertex, matrix):
-    path_cost = 0
-    
-    while visited[vertex] is not None:
-        path_cost += matrix[vertex][visited[vertex]]
-        vertex = visited[vertex]
-        
-    return path_cost
+    return path if path[0] is not None else []
 
 
 def BFS(matrix, start, end):
@@ -66,29 +38,42 @@ def BFS(matrix, start, end):
     """
     
     if start < 0 or end >= len(matrix):
-        print("Invalid Input")
-        return {}, []
+        raise ValueError("Invalid Input")
     
     visited = {start: None}
-    queue = deque()
-    queue.append(start)
-    
-    while True:
+    queue = deque([start])
+        
+    while queue:
         current = queue.popleft()
+        
         if current == end:
             break
         
-        for vertex in range(len(matrix)):
-            cost = matrix[current][vertex]
+        for vertex, cost in enumerate(matrix[current]):
             if cost > 0 and vertex not in visited:
                 visited[vertex] = current
                 queue.append(vertex)
                 if vertex == end:
+                    queue.clear()
                     break
                 
     path = path_converter(visited, end)
-    
+        
     return visited, path
+
+
+def dfs_recursion(matrix, visited, current, end):
+    if current == end:
+        return visited
+
+    for vertex, cost in enumerate(matrix[current]):
+        if cost > 0 and vertex not in visited:
+            visited[vertex] = current
+            result = dfs_recursion(matrix, visited, vertex, end)
+            if end in result:
+                return result
+
+    return visited
 
 
 def DFS(matrix, start, end):
@@ -113,11 +98,11 @@ def DFS(matrix, start, end):
     """
 
     if start < 0 or end >= len(matrix):
-        print("Invalid Input")
-        return {}, []
+        raise ValueError("Invalid Input")
     
     visited = {start: None}
-    visited = DFS_recur(matrix, visited, start, end)
+    visited = dfs_recursion(matrix, visited, start, end)
+    
     path = path_converter(visited, end)
     
     return visited, path
@@ -145,10 +130,10 @@ def UCS(matrix, start, end):
     """
     
     if start < 0 or end >= len(matrix):
-        print("Invalid Input")
-        return {}, []
+        raise ValueError("Invalid Input")
     
     visited = {start: None}
+    cost_so_far = {start: 0}
     queue = PriorityQueue()
     queue.put((0, start))
     
@@ -158,17 +143,13 @@ def UCS(matrix, start, end):
         if current_node == end:
             break
         
-        for vertex in range(len(matrix)):
-            cost = matrix[current_node][vertex]
-            
-            if cost <= 0 or vertex in visited:
-                continue
-            
-            new_cost = current_cost + cost
-            
-            if vertex not in visited or new_cost < current_cost_of_vertex(visited, vertex, matrix):
-                visited[vertex] = current_node
-                queue.put((new_cost, vertex))
+        for vertex, cost in enumerate(matrix[current_node]):
+            if cost > 0:
+                new_cost = current_cost + cost
+                if vertex not in cost_so_far or new_cost < cost_so_far[vertex]:
+                    cost_so_far[vertex] = new_cost
+                    visited[vertex] = current_node
+                    queue.put((new_cost, vertex))
     
     path = path_converter(visited, end)
     
@@ -198,21 +179,19 @@ def GBFS(matrix, start, end):
     """
      
     if start < 0 or end >= len(matrix):
-        print("Invalid Input")
-        return {}, []
+        raise ValueError("Invalid Input")
     
     visited = {start: None}
     queue = PriorityQueue()
     queue.put((0, start))
     
-    while queue.not_empty:
+    while not queue.empty():
         current = queue.get()[1]
         
         if current == end:
             break
         
-        for vertex in range(len(matrix)):
-            cost = matrix[current][vertex]
+        for vertex, cost in enumerate(matrix[current]):
             if cost > 0 and vertex not in visited:
                 visited[vertex] = current
                 queue.put((cost, vertex))
@@ -220,6 +199,21 @@ def GBFS(matrix, start, end):
     path = path_converter(visited, end)
     
     return visited, path
+
+
+def calculate_g_cost(matrix, visited, vertex):
+    cost = 0
+    current_node = vertex
+    while current_node is not None:
+        parent_node = visited[current_node]
+        if parent_node is not None:
+            cost += matrix[parent_node][current_node]
+        current_node = parent_node
+    return cost
+
+
+def euclidean_distance(pos1, pos2):
+    return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
 
 
 def Astar(matrix, start, end, pos):
@@ -244,4 +238,34 @@ def Astar(matrix, start, end, pos):
     path: list
         Founded path
     """
-    # TODO: 
+    
+    if start < 0 or end >= len(matrix):
+        raise ValueError("Invalid Input")
+    
+    visited = {start: None}
+    open_list = PriorityQueue()
+    open_list.put((0, start))
+    g_cost = {start: 0}
+    closed_list = set()
+    
+    while not open_list.empty():
+        current = open_list.get()[1]
+        
+        if current == end:
+            break
+        
+        closed_list.add(current)
+        
+        for vertex, cost in enumerate(matrix[current]):
+            if cost > 0 and vertex not in closed_list:
+                tentative_g_cost = g_cost[current] + cost
+                
+                if vertex not in g_cost or tentative_g_cost < g_cost[vertex]:
+                    g_cost[vertex] = tentative_g_cost
+                    f = tentative_g_cost + euclidean_distance(pos[vertex], pos[end]) # f = g + h
+                    open_list.put((f, vertex))
+                    visited[vertex] = current
+                
+    path = path_converter(visited, end)
+    
+    return visited, path
