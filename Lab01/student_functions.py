@@ -1,75 +1,61 @@
 import numpy as np
 from collections import deque
-from queue import PriorityQueue
-import math
 
 
-def path_converter(visited, end):
+def Reconstruct_path(visited, end):
     path = []
     current_node = end
     
     while current_node is not None:
         path.append(current_node)
-        current_node = visited[current_node]
+        current_node = visited[current_node]  # Move to the previous node in the path
         
-    path.reverse()
+    path.reverse()  # Reverse the path to get it from start to end
     return path if path[0] is not None else []
 
 
+# ========= BFS =========
 def BFS(matrix, start, end):
-    """
-    BFS algorithm:
-    Parameters:
-    ---------------------------
-    matrix: np array 
-        The graph's adjacency matrix
-    start: integer
-        starting node
-    end: integer
-        ending node
-    
-    Returns
-    ---------------------
-    visited
-        The dictionary contains visited nodes, each key is a visited node,
-        each value is the adjacent node visited before it.
-    path: list
-        Founded path
-    """
-    
-    if start < 0 or end >= len(matrix):
+    # Check if the start or end indices are out of bounds
+    if start < 0 or end >= len(matrix) or start >= len(matrix):
         raise ValueError("Invalid Input")
     
-    visited = {start: None}
-    queue = deque([start])
+    visited = {start: None} # Dictionary to keep track of visited nodes and their parents
+    frontier = deque([start]) # Queue to manage the nodes to be explored
         
-    while queue:
-        current = queue.popleft()
+    while frontier:
+        current = frontier.popleft()
         
         if current == end:
             break
         
         for vertex, cost in enumerate(matrix[current]):
-            if cost > 0 and vertex not in visited:
-                visited[vertex] = current
-                queue.append(vertex)
+            if cost > 0 and vertex not in visited: # Check for valid and unvisited neighbors
+                visited[vertex] = current # Mark the neighbor as visited with the current node as its parent
+                frontier.append(vertex)
+                
                 if vertex == end:
-                    queue.clear()
+                    frontier.clear()
                     break
                 
-    path = path_converter(visited, end)
-        
+    if end not in visited:
+        raise ValueError("No path found from start to end")
+                
+    # Reconstruct the path from start to end
+    path = Reconstruct_path(visited, end)
+            
     return visited, path
 
 
+# ========= DFS =========
 def dfs_recursion(matrix, visited, current, end):
     if current == end:
         return visited
 
     for vertex, cost in enumerate(matrix[current]):
-        if cost > 0 and vertex not in visited:
-            visited[vertex] = current
-            result = dfs_recursion(matrix, visited, vertex, end)
+        if cost > 0 and vertex not in visited: # Check for valid and unvisited neighbors
+            visited[vertex] = current # Mark the neighbor as visited with the current node as its parent
+            result = dfs_recursion(matrix, visited, vertex, end) # Recursively explore the neighbor
             if end in result:
                 return result
 
@@ -77,195 +63,150 @@ def dfs_recursion(matrix, visited, current, end):
 
 
 def DFS(matrix, start, end):
-    """
-    DFS algorithm
-     Parameters:
-    ---------------------------
-    matrix: np array 
-        The graph's adjacency matrix
-    start: integer 
-        starting node
-    end: integer
-        ending node
-    
-    Returns
-    ---------------------
-    visited 
-        The dictionary contains visited nodes: each key is a visited node, 
-        each value is the key's adjacent node which is visited before key.
-    path: list
-        Founded path
-    """
-
-    if start < 0 or end >= len(matrix):
+    # Check if the start or end indices are out of bounds
+    if start < 0 or end >= len(matrix) or start >= len(matrix):
         raise ValueError("Invalid Input")
     
-    visited = {start: None}
+    visited = {start: None} # Dictionary to keep track of visited nodes and their parents
     visited = dfs_recursion(matrix, visited, start, end)
     
-    path = path_converter(visited, end)
+    if end not in visited:
+        raise ValueError("No path found from start to end")
+    
+    # Reconstruct the path from start to end
+    path = Reconstruct_path(visited, end)
     
     return visited, path
 
 
+# ========= UCS =========
 def UCS(matrix, start, end):
-    """
-    Uniform Cost Search algorithm
-     Parameters:visited
-    ---------------------------
-    matrix: np array
-        The graph's adjacency matrix
-    start: integer
-        starting node
-    end: integer
-        ending node
-    
-    Returns
-    ---------------------
-    visited
-        The dictionary contains visited nodes: each key is a visited node, 
-        each value is the key's adjacent node which is visited before key.
-    path: list
-        Founded path
-    """
-    
+    # Check if the start or end indices are out of bounds
     if start < 0 or end >= len(matrix):
         raise ValueError("Invalid Input")
     
-    visited = {start: None}
-    cost_so_far = {start: 0}
-    queue = PriorityQueue()
-    queue.put((0, start))
+    visited = {} # Dictionary to keep track of visited nodes and their parents
+    frontier = [(0, start, None)] # Priority queue initialized with the start node
+    costs = {start: 0} # Dictionary to keep track of the cost to reach each node
+    is_found = False
     
-    while not queue.empty():
-        current_cost, current_node = queue.get()
+    while frontier:
+        # Sort the frontier by cost in descending order and pop the node with the smallest cost
+        frontier.sort(reverse=True)
+        cost, current_node, parent = frontier.pop()
+        
+        if current_node in visited:
+            continue
+        
+        visited[current_node] = parent
         
         if current_node == end:
+            is_found = True
             break
         
-        for vertex, cost in enumerate(matrix[current_node]):
-            if cost > 0:
-                new_cost = current_cost + cost
-                if vertex not in cost_so_far or new_cost < cost_so_far[vertex]:
-                    cost_so_far[vertex] = new_cost
-                    visited[vertex] = current_node
-                    queue.put((new_cost, vertex))
+        for vertex, current_cost in enumerate(matrix[current_node]):
+            if current_cost > 0: # Check for valid neighbors
+                new_cost = cost + current_cost # Calculate the new cost to reach the neighbor
+                
+                if vertex not in costs or new_cost < costs[vertex]:
+                    costs[vertex] = new_cost # Update the cost to reach the neighbor
+                    frontier.append((new_cost, vertex, current_node))
     
-    path = path_converter(visited, end)
+    if not is_found:
+        raise ValueError("No path found from start to end")
     
+    # Reconstruct the path from start to end
+    path = Reconstruct_path(visited, end)
+        
     return visited, path
 
 
+# ========= GBFS =========
 def GBFS(matrix, start, end):
-    """
-    Greedy Best First Search algorithm 
-    heuristic : edge weights
-     Parameters:
-    ---------------------------
-    matrix: np array 
-        The graph's adjacency matrix
-    start: integer 
-        starting node
-    end: integer
-        ending node
-   
-    Returns
-    ---------------------
-    visited
-        The dictionary contains visited nodes: each key is a visited node, 
-        each value is the key's adjacent node which is visited before key.
-    path: list
-        Founded path
-    """
-     
+    # Check if the start or end indices are out of bounds
     if start < 0 or end >= len(matrix):
         raise ValueError("Invalid Input")
     
-    visited = {start: None}
-    queue = PriorityQueue()
-    queue.put((0, start))
+    visited = {} # Dictionary to keep track of visited nodes and their parents
+    frontier = [(matrix[start][end], start, None)] # Priority queue initialized with the start node and its heuristic cost
+    is_found = False
     
-    while not queue.empty():
-        current = queue.get()[1]
+    while frontier:
+        # Sort the frontier by heuristic cost in descending order and pop the node with the smallest heuristic cost
+        frontier.sort(reverse=True)
+        _, current_node, parent = frontier.pop()
         
-        if current == end:
+        if current_node in visited:
+            continue
+        
+        visited[current_node] = parent
+        
+        if current_node == end:
+            is_found = True
             break
         
-        for vertex, cost in enumerate(matrix[current]):
-            if cost > 0 and vertex not in visited:
-                visited[vertex] = current
-                queue.put((cost, vertex))
+        for vertex, current_cost in enumerate(matrix[current_node]):
+            if current_cost > 0: # Check for valid neighbors
+                h_cost = matrix[vertex][end] # Calculate the heuristic cost for the neighbor
                 
-    path = path_converter(visited, end)
+                if vertex not in visited:
+                    frontier.append((h_cost, vertex, current_node))
     
+    if not is_found:
+        raise ValueError("No path found from start to end")
+    
+    # Reconstruct the path from start to end
+    path = Reconstruct_path(visited, end)
+        
     return visited, path
 
 
-def calculate_g_cost(matrix, visited, vertex):
-    cost = 0
-    current_node = vertex
-    while current_node is not None:
-        parent_node = visited[current_node]
-        if parent_node is not None:
-            cost += matrix[parent_node][current_node]
-        current_node = parent_node
-    return cost
+# ========= Astar =========
 
-
-def euclidean_distance(pos1, pos2):
-    return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
+# Calculate the heuristic cost for A* by Euclidean distance
+def euclidean_distance(node, goal):
+    return np.sqrt((node[0] - goal[0])**2 + (node[1] - goal[1])**2)
 
 
 def Astar(matrix, start, end, pos):
-    """
-    A* Search algorithm
-    heuristic: eclid distance based positions parameter
-     Parameters:
-    ---------------------------
-    matrix: np array UCS
-        The graph's adjacency matrix
-    start: integer 
-        starting node
-    end: integer
-        ending node
-    pos: dictionary. keys are nodes, values are positions
-        positions of graph nodes
-    Returns
-    ---------------------
-    visited
-        The dictionary contains visited nodes: each key is a visited node, 
-        each value is the key's adjacent node which is visited before key.
-    path: list
-        Founded path
-    """
-    
+    # Check if the start or end indices are out of bounds
     if start < 0 or end >= len(matrix):
         raise ValueError("Invalid Input")
-    
-    visited = {start: None}
-    open_list = PriorityQueue()
-    open_list.put((0, start))
-    g_cost = {start: 0}
-    closed_list = set()
-    
-    while not open_list.empty():
-        current = open_list.get()[1]
-        
-        if current == end:
+   
+    visited = {} # Dictionary to keep track of visited nodes and their parents
+    frontier = {start: (0, 0,None)} # Priority queue initialized with the start node
+    is_found = False
+
+    while frontier:
+        # Pop the node with the smallest cost + heuristic value
+        current_node, (cost_node, h, adjacent) = frontier.popitem()
+        visited[current_node] = adjacent # Mark the node as visited
+
+        if current_node == end:
+            is_found = True
             break
-        
-        closed_list.add(current)
-        
-        for vertex, cost in enumerate(matrix[current]):
-            if cost > 0 and vertex not in closed_list:
-                tentative_g_cost = g_cost[current] + cost
+
+        for vertex, cost in  enumerate(matrix[current_node]):
+            if vertex not in visited and cost > 0: # Check for valid and unvisited neighbors
+                new_cost = cost_node + cost # Calculate the new cost to reach the neighbor
                 
-                if vertex not in g_cost or tentative_g_cost < g_cost[vertex]:
-                    g_cost[vertex] = tentative_g_cost
-                    f = tentative_g_cost + euclidean_distance(pos[vertex], pos[end]) # f = g + h
-                    open_list.put((f, vertex))
-                    visited[vertex] = current
-                
-    path = path_converter(visited, end)
+                if vertex in frontier:
+                    old_cost = frontier[vertex][0]
+                    if old_cost > (cost_node + cost): # Update the cost if a cheaper path is found
+                        frontier[vertex] = (new_cost, frontier[vertex][1], current_node)
+                else:
+                    # Calculate the heuristic cost using Euclidean distance
+                    vertex_pos = (vertex, vertex)
+                    end_pos = (end, end)
+                    frontier[vertex] = (new_cost, euclidean_distance(vertex_pos, end_pos), current_node)
+
+        # Sort the frontier by the sum of cost + heuristic value
+        frontier = dict(sorted(frontier.items(), key=lambda item: (item[1][0] + item[1][1], item[0]), reverse=True))
+
+    if not is_found:
+        raise ValueError("No path found from start to end")
+    
+    # Reconstruct the path from start to end
+    path = Reconstruct_path(visited, end)
     
     return visited, path
